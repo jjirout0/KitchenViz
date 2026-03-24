@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { GoogleGenAI } from "@google/genai";
-import { Upload, Image as ImageIcon, Loader2, CheckCircle2, ArrowRight, RefreshCw, AlertCircle } from 'lucide-react';
+import { Upload, Image as ImageIcon, Loader2, CheckCircle2, ArrowRight, RefreshCw, AlertCircle, X, Coffee } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
 import { KitchenConfig, GenerationResult } from './types';
@@ -17,6 +17,7 @@ export default function App() {
   });
   const [result, setResult] = useState<GenerationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showHighDemandModal, setShowHighDemandModal] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -116,10 +117,14 @@ export default function App() {
       setStep('result');
     } catch (err: any) {
       console.error(err);
-      if (err.message?.includes("403") || err.message?.includes("permission")) {
+      const errorMessage = err.message || "";
+      
+      if (errorMessage.includes("403") || errorMessage.includes("permission")) {
         setError("Chyba oprávnění (403). Tento model je ZDARMA, ale vyžaduje nastavený API klíč v AI Studiu. Klikněte na ozubené kolečko (Settings) vpravo nahoře a ujistěte se, že máte vybraný platný API klíč.");
+      } else if (errorMessage.includes("503") || errorMessage.toLowerCase().includes("high demand") || errorMessage.toLowerCase().includes("unavailable")) {
+        setShowHighDemandModal(true);
       } else {
-        setError(err.message || "Během generování došlo k chybě. Zkuste to prosím znovu.");
+        setError(errorMessage || "Během generování došlo k chybě. Zkuste to prosím znovu.");
       }
     } finally {
       setLoading(false);
@@ -136,6 +141,57 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col items-center py-12 px-4 sm:px-6 lg:px-8">
+      {/* High Demand Modal */}
+      <AnimatePresence>
+        {showHighDemandModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 relative overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 w-full h-2 bg-amber-400" />
+              
+              <button 
+                onClick={() => setShowHighDemandModal(false)}
+                className="absolute top-4 right-4 p-2 hover:bg-stone-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-stone-400" />
+              </button>
+
+              <div className="flex flex-col items-center text-center">
+                <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mb-6">
+                  <Coffee className="w-8 h-8 text-amber-600" />
+                </div>
+                
+                <h3 className="text-2xl font-bold text-stone-900 mb-4">Model je momentálně vytížen</h3>
+                
+                <div className="space-y-4 text-stone-600">
+                  <p>
+                    Omlouvám se, ale servery Google jsou právě teď přetížené. Protože se snažím tuto aplikaci pro 
+                    <strong> Truhlářství Jirout</strong> vyvíjet a provozovat <strong>zcela zdarma</strong>, využíváme bezplatnou verzi AI modelů.
+                  </p>
+                  <p className="text-sm bg-stone-50 p-3 rounded-xl border border-stone-100 italic">
+                    "Bezplatné modely mají občasné výpadky při vysoké poptávce. Stačí chvíli počkat a zkusit to znovu."
+                  </p>
+                  <p className="font-medium text-stone-800">
+                    Zkuste to prosím za 1-2 minuty znovu. Děkuji za trpělivost!
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => setShowHighDemandModal(false)}
+                  className="mt-8 w-full py-4 bg-stone-900 hover:bg-stone-800 text-white rounded-xl font-bold transition-all shadow-lg"
+                >
+                  Rozumím
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <motion.header 
         initial={{ opacity: 0, y: -20 }}
