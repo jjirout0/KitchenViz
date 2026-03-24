@@ -61,36 +61,50 @@ export default function App() {
       const ai = new GoogleGenAI({ apiKey });
       const base64Image = await fileToBase64(file);
 
-      // Step 1: Use Gemini to analyze the sketch and generate a high-quality prompt for Pollinations.ai
-      const promptResponse = await ai.models.generateContent({
-        model: 'gemini-3.1-flash-lite-preview',
-        contents: {
-          parts: [
-            {
-              inlineData: {
-                mimeType: file.type,
-                data: base64Image
+      let generatedPrompt = "";
+      
+      try {
+        // Step 1: Use Gemini to analyze the sketch
+        // Switching to gemini-3-flash-preview for potentially better availability
+        const promptResponse = await ai.models.generateContent({
+          model: 'gemini-3-flash-preview',
+          contents: {
+            parts: [
+              {
+                inlineData: {
+                  mimeType: file.type,
+                  data: base64Image
+                }
+              },
+              {
+                text: `Analyzuj tento náčrt kuchyně a vytvoř detailní anglický prompt pro generátor obrázků (DALL-E/Midjourney styl).
+                Náčrt obsahuje rozvržení kuchyně.
+                Požadavky na materiály a styl:
+                - Materiál skříněk: ${config.cabinetMaterial}
+                - Materiál pracovní desky: ${config.countertopMaterial}
+                - Styl: ${config.style}
+                
+                Prompt musí být v angličtině, velmi detailní, zaměřený na fotorealismus, profesionální osvětlení, 8k rozlišení, architektonický render. 
+                Musí přesně popisovat rozvržení z náčrtu.
+                Odpověz POUZE výsledným promptem v angličtině.`
               }
-            },
-            {
-              text: `Analyzuj tento náčrt kuchyně a vytvoř detailní anglický prompt pro generátor obrázků (DALL-E/Midjourney styl).
-              Náčrt obsahuje rozvržení kuchyně.
-              Požadavky na materiály a styl:
-              - Materiál skříněk: ${config.cabinetMaterial}
-              - Materiál pracovní desky: ${config.countertopMaterial}
-              - Styl: ${config.style}
-              
-              Prompt musí být v angličtině, velmi detailní, zaměřený na fotorealismus, profesionální osvětlení, 8k rozlišení, architektonický render. 
-              Musí přesně popisovat rozvržení z náčrtu.
-              Odpověz POUZE výsledným promptem v angličtině.`
-            }
-          ]
-        }
-      });
+            ]
+          }
+        });
+        generatedPrompt = promptResponse.text?.trim() || "";
+      } catch (visionErr: any) {
+        console.warn("Vision model failed, using fallback prompt:", visionErr);
+        // Fallback: If Gemini Vision is overloaded, we generate a prompt based on text config only
+        // so the user at least gets an image, even if it doesn't match the sketch perfectly
+        generatedPrompt = `Professional architectural 3D render of a modern kitchen, ${config.style} style, ${config.cabinetMaterial} cabinets, ${config.countertopMaterial} countertop, high-end appliances, luxury interior design, photorealistic, 8k, cinematic lighting, wide angle shot.`;
+      }
 
-      const generatedPrompt = promptResponse.text?.trim() || `Professional architectural 3D render of a kitchen, ${config.style} style, ${config.cabinetMaterial} cabinets, ${config.countertopMaterial} countertop, highly detailed, photorealistic, 8k, based on a hand-drawn sketch layout.`;
+      if (!generatedPrompt) {
+        generatedPrompt = `Professional architectural 3D render of a kitchen, ${config.style} style, ${config.cabinetMaterial} cabinets, ${config.countertopMaterial} countertop, highly detailed, photorealistic, 8k.`;
+      }
 
       // Step 2: Use Pollinations.ai to generate the image
+      // We use 'flux' as it's currently one of the best models available on Pollinations
       const POLLINATIONS_API_KEY = "sk_EUDBZvGHhYHePpcAw1aBEhH0NbPUUtew";
       const seed = Math.floor(Math.random() * 1000000);
       const width = 1280;
