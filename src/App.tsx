@@ -104,41 +104,28 @@ export default function App() {
       }
 
       // Step 2: Use Pollinations.ai to generate the image
-      // We use 'flux' as it's currently one of the best models available on Pollinations
-      const POLLINATIONS_API_KEY = "sk_EUDBZvGHhYHePpcAw1aBEhH0NbPUUtew";
       const seed = Math.floor(Math.random() * 1000000);
       const width = 1280;
       const height = 720;
       
-      // We use the prompt to generate a URL for Pollinations.ai
       // Pollinations supports a simple GET request for images
       const encodedPrompt = encodeURIComponent(generatedPrompt);
       const pollinationsUrl = `https://pollinations.ai/p/${encodedPrompt}?width=${width}&height=${height}&seed=${seed}&model=flux&nologo=true`;
-
-      // We can fetch the image to verify it's working or just use the URL
-      // Since we want to show it in the result, we'll use the URL directly
-      // But to ensure it's "generated" before showing, we can pre-load it
-      const img = new Image();
-      img.src = pollinationsUrl;
-      await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = reject;
-      });
 
       setResult({
         imageUrl: pollinationsUrl
       });
       setStep('result');
     } catch (err: any) {
-      console.error(err);
-      const errorMessage = err.message || "";
+      console.error("Detail chyby:", err);
+      const errorMessage = err.message || String(err);
       
       if (errorMessage.includes("403") || errorMessage.includes("permission")) {
-        setError("Chyba oprávnění (403). Tento model je ZDARMA, ale vyžaduje nastavený API klíč v AI Studiu. Klikněte na ozubené kolečko (Settings) vpravo nahoře a ujistěte se, že máte vybraný platný API klíč.");
+        setError("Chyba oprávnění (403). Ujistěte se, že máte v Settings vybraný platný API klíč pro Gemini.");
       } else if (errorMessage.includes("503") || errorMessage.toLowerCase().includes("high demand") || errorMessage.toLowerCase().includes("unavailable")) {
         setShowHighDemandModal(true);
       } else {
-        setError(errorMessage || "Během generování došlo k chybě. Zkuste to prosím znovu.");
+        setError(`Chyba: ${errorMessage}`);
       }
     } finally {
       setLoading(false);
