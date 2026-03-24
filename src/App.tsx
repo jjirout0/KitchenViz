@@ -54,7 +54,7 @@ export default function App() {
       // Initialize inside the function to ensure the latest API key is used
       const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey) {
-        throw new Error("API klíč nebyl nalezen. Prosím nastavte jej v nastavení AI Studia.");
+        throw new Error("API klíč nebyl nalezen. \n\n1. V AI Studiu: Klikněte na Settings (ozubené kolečko) vpravo nahoře a vyberte API klíč.\n2. Na Vercelu: Přidejte proměnnou GEMINI_API_KEY do nastavení projektu (Environment Variables).");
       }
 
       const ai = new GoogleGenAI({ apiKey });
