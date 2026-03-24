@@ -60,9 +60,9 @@ export default function App() {
       const ai = new GoogleGenAI({ apiKey });
       const base64Image = await fileToBase64(file);
 
-      // Using gemini-2.5-flash-image (Free Tier model)
-      const imageResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-image',
+      // Step 1: Use Gemini to analyze the sketch and generate a high-quality prompt for Pollinations.ai
+      const promptResponse = await ai.models.generateContent({
+        model: 'gemini-3.1-flash-lite-preview',
         contents: {
           parts: [
             {
@@ -72,38 +72,46 @@ export default function App() {
               }
             },
             {
-              text: `Vytvoř realistickou 3D vizualizaci kuchyně podle tohoto náčrtu. 
-              Dodrž přesně rozvržení a proporce z náčrtu.
-              Materiály a styl:
+              text: `Analyzuj tento náčrt kuchyně a vytvoř detailní anglický prompt pro generátor obrázků (DALL-E/Midjourney styl).
+              Náčrt obsahuje rozvržení kuchyně.
+              Požadavky na materiály a styl:
               - Materiál skříněk: ${config.cabinetMaterial}
               - Materiál pracovní desky: ${config.countertopMaterial}
               - Styl: ${config.style}
               
-              Výsledek musí vypadat jako profesionální architektonický render s přirozeným osvětlením.`
+              Prompt musí být v angličtině, velmi detailní, zaměřený na fotorealismus, profesionální osvětlení, 8k rozlišení, architektonický render. 
+              Musí přesně popisovat rozvržení z náčrtu.
+              Odpověz POUZE výsledným promptem v angličtině.`
             }
           ]
-        },
-        config: {
-          imageConfig: {
-            aspectRatio: "16:9"
-          }
         }
       });
 
-      let generatedImageUrl = "";
-      for (const part of imageResponse.candidates?.[0]?.content?.parts || []) {
-        if (part.inlineData) {
-          generatedImageUrl = `data:image/png;base64,${part.inlineData.data}`;
-          break;
-        }
-      }
+      const generatedPrompt = promptResponse.text?.trim() || `Professional architectural 3D render of a kitchen, ${config.style} style, ${config.cabinetMaterial} cabinets, ${config.countertopMaterial} countertop, highly detailed, photorealistic, 8k, based on a hand-drawn sketch layout.`;
 
-      if (!generatedImageUrl) {
-        throw new Error("Nepodařilo se vygenerovat obrázek. Zkuste to prosím znovu.");
-      }
+      // Step 2: Use Pollinations.ai to generate the image
+      const POLLINATIONS_API_KEY = "sk_EUDBZvGHhYHePpcAw1aBEhH0NbPUUtew";
+      const seed = Math.floor(Math.random() * 1000000);
+      const width = 1280;
+      const height = 720;
+      
+      // We use the prompt to generate a URL for Pollinations.ai
+      // Pollinations supports a simple GET request for images
+      const encodedPrompt = encodeURIComponent(generatedPrompt);
+      const pollinationsUrl = `https://pollinations.ai/p/${encodedPrompt}?width=${width}&height=${height}&seed=${seed}&model=flux&nologo=true`;
+
+      // We can fetch the image to verify it's working or just use the URL
+      // Since we want to show it in the result, we'll use the URL directly
+      // But to ensure it's "generated" before showing, we can pre-load it
+      const img = new Image();
+      img.src = pollinationsUrl;
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+      });
 
       setResult({
-        imageUrl: generatedImageUrl
+        imageUrl: pollinationsUrl
       });
       setStep('result');
     } catch (err: any) {
@@ -338,7 +346,7 @@ export default function App() {
       {/* Footer */}
       <footer className="mt-20 text-stone-400 text-sm flex flex-col items-center gap-4">
         <div className="flex items-center gap-6">
-          <span>Powered by Gemini 2.5 Flash Image</span>
+          <span>Powered by Pollinations.ai & Gemini</span>
           <span className="w-1 h-1 bg-stone-300 rounded-full"></span>
           <span>Architectural Visualization AI</span>
         </div>
